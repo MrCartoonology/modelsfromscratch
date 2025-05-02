@@ -172,3 +172,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# VS Code settings
+.vscode/
+
+# pipeline outputs
+data/
+logs/
+training/

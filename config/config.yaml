@@ -1,0 +1,24 @@
+drop_into_debugger_on_error: True
+tokenizer: "bert-base-uncased"
+
+dataloader:
+  data_dir: "/Users/davidschneider/data/language/books/project_gutenberg"
+  seq_len: 128
+  batch_size: 2
+  shuffle: True
+
+model_name: "transformer"
+models:
+  basic_rnn:
+    embedding_dim: 128
+    hidden_dim: 256
+  transformer:
+    embedding_dim: 64
+    wave_dim: 10000
+    petype: "sin"
+
+train:
+  epochs: 1
+  stop_after_two_steps: True
+  learning_rate: 0.001
+  max_grad_norm: 2.0
