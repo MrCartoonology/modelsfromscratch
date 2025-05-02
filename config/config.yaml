@@ -15,8 +15,8 @@ models:
   transformer:
     embedding_dim: 64
     wave_dim: 10000
-    petype: "sin"
-
+#    petype: "sin"
+    petype: "rot"
 train:
   epochs: 1
   stop_after_two_steps: True

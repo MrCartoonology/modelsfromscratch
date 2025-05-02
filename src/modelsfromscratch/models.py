@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 from modelsfromscratch.setup import RunTracker
@@ -29,35 +28,20 @@ class TransformerModel(nn.Module):
         self.wave_dim = wave_dim
         self.petype = petype
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        if petype == "sin":
-            self.register_buffer(
-                "pe",
-                torch.tensor(
-                    get_positional_encoding(slen=seq_len, emb_dim=embedding_dim, wave_dim=wave_dim), dtype=torch.float32
-                ),
-            )
-        else:
-            raise ValueError(f"Positional encoding type {petype} not supported.")
+
+        pe_np = get_positional_encoding(slen=seq_len, emb_dim=embedding_dim, wave_dim=wave_dim)
+        self.register_buffer("pe", torch.tensor(pe_np, dtype=torch.float32))
+        assert petype in ["sin", "rot"], f"Positional encoding type {petype} not supported."
         self.fc = nn.Linear(embedding_dim, vocab_size)
 
     def forward(self, input_ids):
         x = self.embedding(input_ids)  # [batch_size, seq_len, embedding_dim]
-        x = x + self.pe[: x.size(1), :]  # Add positional encoding
+        if self.petype == "sin":
+            x = x + self.pe[: x.size(1), :]  # Add positional encoding
+        elif self.petype == "rot":
+
         logits = self.fc(x)  # [batch_size, sbatch_size, vocab_size]
         return logits
-
-
-def get_positional_encoding(slen, emb_dim, wave_dim=10000):
-    pos = np.arange(slen)[:, np.newaxis]  # (slen, 1)
-    i = np.arange(emb_dim)[np.newaxis, :]  # (1, emb_dim)
-    pow = (2 * i) / emb_dim
-    angle_rates = 1 / (wave_dim**pow)
-    angle_radians = pos * angle_rates
-
-    encoding = np.zeros((slen, emb_dim))
-    encoding[:, 0::2] = np.sin(angle_radians)[:, 0::2]
-    encoding[:, 1::2] = np.cos(angle_radians)[:, 1::2]
-    return encoding
 
 
 def load_model(res: RunTracker) -> nn.Module:
