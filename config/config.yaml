@@ -5,8 +5,15 @@ device: "cpu"
 dataloader:
 #  data_dir: "/Users/davidschneider/data/language/books/project_gutenberg"
   # get a shallow copy of the pytorch repo - git clone --depth 1 https://github.com/pytorch/pytorch
-  data_dir: "/Users/davidschneider/code/pytorch/pytorch"
-  include_hidden_dirs: False
+  files:
+    data_dir: "/Users/davidschneider/code/pytorch/pytorch"
+    include_hidden_dirs: False
+    include_hidden_files: True
+    only_include_specified_extensions: True  
+    specified_extensions:
+      - ".py"
+  max_mb: 100
+  train_ratio: 0.8
   seq_len: 128
   batch_size: 64
   shuffle: True
@@ -25,6 +32,6 @@ models:
     hidden_dim: 256
 train:
   epochs: 1
-  stop_after_two_steps: False
+  stop_after_two_steps: True
   learning_rate: 0.01
   max_grad_norm: 5.0

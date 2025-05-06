@@ -6,14 +6,15 @@ from modelsfromscratch.setup import RunTracker
 
 def train(res: RunTracker):
     model = res.model
-    dataloader = res.dataloader
+    train_dataloader = res.dataloaders['train']
+    val_dataloader = res.dataloaders['val']
     cfg = res.cfg["train"]
 
     loss = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=cfg["learning_rate"])
     model.train()
     for epoch in range(cfg["epochs"]):
-        for step, batch in enumerate(dataloader):
+        for step, batch in enumerate(train_dataloader):
             if cfg["stop_after_two_steps"] and step >= 2:
                 break
             x, y = batch
