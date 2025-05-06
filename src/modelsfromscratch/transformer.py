@@ -26,7 +26,7 @@ class TransformerLM(nn.Module):
         )
 
         self.pos_embed = RotationalPositionalEncoding(
-            wave_dim=10000, model_dim=model_dim
+            freq_base=10000, model_dim=model_dim
         )
 
         self.transformer_blocks = nn.ModuleList(
