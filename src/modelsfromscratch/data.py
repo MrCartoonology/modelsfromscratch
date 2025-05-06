@@ -15,12 +15,13 @@ def get_dataloader(res: RunTracker) -> DataLoader:
     cfg = res.cfg["dataloader"]
     seq_len = cfg["seq_len"]
     batch_size = cfg["batch_size"]
-    text_dir = cfg["data_dir"]
+    data_dir = cfg["data_dir"]
+    include_hidden_dirs = cfg["include_hidden_dirs"]
 
     # 1. Load and concatenate all text files
     all_text = ""
-    for fname in os.listdir(text_dir):
-        with open(os.path.join(text_dir, fname), "r", encoding="utf-8") as f:
+    for fname in os.listdir(data_dir):
+        with open(os.path.join(data_dir, fname), "r", encoding="utf-8") as f:
             all_text += f.read() + "\n"
 
     # 2. Tokenize entire corpus

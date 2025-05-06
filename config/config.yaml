@@ -3,7 +3,10 @@ tokenizer: "bert-base-uncased"
 device: "cpu"
 
 dataloader:
-  data_dir: "/Users/davidschneider/data/language/books/project_gutenberg"
+#  data_dir: "/Users/davidschneider/data/language/books/project_gutenberg"
+  # get a shallow copy of the pytorch repo - git clone --depth 1 https://github.com/pytorch/pytorch
+  data_dir: "/Users/davidschneider/code/pytorch/pytorch"
+  include_hidden_dirs: False
   seq_len: 128
   batch_size: 64
   shuffle: True
