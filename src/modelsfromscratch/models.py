@@ -18,9 +18,7 @@ class BasicRNNModel(nn.Module):
 
 
 class TransformerModel(nn.Module):
-    def __init__(
-        self, vocab_size, seq_len, embedding_dim, wave_dim, petype="sin"
-    ):
+    def __init__(self, vocab_size, seq_len, embedding_dim, wave_dim, petype="sin"):
         super(TransformerModel, self).__init__()
         self.vocab_size = vocab_size
         self.seq_len = seq_len
@@ -29,9 +27,14 @@ class TransformerModel(nn.Module):
         self.petype = petype
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
 
-        pe_np = get_positional_encoding(slen=seq_len, emb_dim=embedding_dim, wave_dim=wave_dim)
+        pe_np = get_positional_encoding(
+            slen=seq_len, emb_dim=embedding_dim, wave_dim=wave_dim
+        )
         self.register_buffer("pe", torch.tensor(pe_np, dtype=torch.float32))
-        assert petype in ["sin", "rot"], f"Positional encoding type {petype} not supported."
+        assert petype in [
+            "sin",
+            "rot",
+        ], f"Positional encoding type {petype} not supported."
         self.fc = nn.Linear(embedding_dim, vocab_size)
 
     def forward(self, input_ids):
@@ -39,7 +42,7 @@ class TransformerModel(nn.Module):
         if self.petype == "sin":
             x = x + self.pe[: x.size(1), :]  # Add positional encoding
         elif self.petype == "rot":
-
+            pass
         logits = self.fc(x)  # [batch_size, sbatch_size, vocab_size]
         return logits
 
@@ -58,5 +61,7 @@ def load_model(res: RunTracker) -> nn.Module:
     if model_name == "basic_rnn":
         return BasicRNNModel(vocab_size=tokenizer.vocab_size, **mdl_cfg)
     elif model_name == "transformer":
-        return TransformerModel(vocab_size=tokenizer.vocab_size, seq_len=seq_len, **mdl_cfg)
+        return TransformerModel(
+            vocab_size=tokenizer.vocab_size, seq_len=seq_len, **mdl_cfg
+        )
     raise ValueError(f"Model {model_name} not implemented yet.")

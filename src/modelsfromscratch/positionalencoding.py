@@ -3,57 +3,57 @@ import torch
 import torch.nn as nn
 
 
-def get_positional_encoding(seq_len, emb_dim, wave_dim):
-    pos = np.arange(seq_len)[:, np.newaxis]  # (slen, 1)
-    i = np.arange(emb_dim)[np.newaxis, :]  # (1, emb_dim)
-    pow = (2 * i) / emb_dim
-    angle_rates = 1 / (wave_dim**pow)
-    angle_radians = pos * angle_rates
-
-    encoding = np.zeros((seq_len, emb_dim))
-    encoding[:, 0::2] = np.sin(angle_radians)[:, 0::2]
-    encoding[:, 1::2] = np.cos(angle_radians)[:, 1::2]
-    return torch.tensor(encoding, dtype=torch.float32)
+def get_pos_encoding_frequencies(wave_dim: int, model_dim: int) -> torch.Tensor:
+    exponents = torch.arange(0, model_dim, 2) / model_dim
+    return 1.0 / (wave_dim**exponents)
 
 
 class RotationalPositionalEncoding(nn.Module):
-    def __init__(self, seq_len, embedding_dim, wave_dim):
+    def __init__(self, wave_dim: int, seq_len: int, model_dim: int, device: str = "cpu", dbg=False):
         super(RotationalPositionalEncoding, self).__init__()
-        self.seq_len = seq_len
-        self.embedding_dim = embedding_dim
         self.wave_dim = wave_dim
-        self.register_buffer("pe", get_positional_encoding(seq_len, embedding_dim, wave_dim))
+        self.seq_len = seq_len
+        self.model_dim = model_dim
+        self.dbg = dbg
 
-    def forward(self, x):
-        raise NotImplementedError("Rotational positional encoding not implemented yet.")
+        freqs = get_pos_encoding_frequencies(self.wave_dim, self.model_dim).to(device)  # [dim/2]
+        pos = torch.arange(seq_len, device=device).float()  # [seq_len]
 
+        angles = torch.einsum('i,j->ij', pos, freqs)  # [seq_len, dim/2]
+        sin = torch.sin(angles)
+        cos = torch.cos(angles)
+        self.register_buffer("sin", sin)
+        self.register_buffer("cos", cos)
+        if self.dbg:
+            print("RotationalPositionalEncoding initialized with:")
+            print(f"wave_dim: {self.wave_dim}, seq_len: {self.seq_len}, model_dim: {self.model_dim}")
+            print(f"sin: {self.sin}")
+            print(f"cos: {self.cos}")
+            print(f"freqs: {freqs}")
+            print(f"angles: {angles}")
 
-class AddRotationalPositionalEncoding(RotationalPositionalEncoding):
-    def __init__(self, seq_len, embedding_dim, wave_dim):
-        super(AddRotationalPositionalEncoding, self).__init__(seq_len, embedding_dim, wave_dim)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        batch_size, _, _ = x.shape
 
-    def forward(self, x):
-        return x + self.pe[: x.size(1), :]
+        sin = self.sin[None, :, :].repeat(batch_size, 1, 1)  # [B, S, D/2]
+        cos = self.cos[None, :, :].repeat(batch_size, 1, 1)  # [B, S, D/2]
 
+        x1 = x[..., 0::2]
+        x2 = x[..., 1::2]
 
-class MulRotationalPositionalEncoding(RotationalPositionalEncoding):
-    def __init__(self, seq_len, embedding_dim, wave_dim):
-        super(MulRotationalPositionalEncoding, self).__init__(seq_len, embedding_dim, wave_dim)
+        rotated = torch.cat([x1 * cos - x2 * sin, x1 * sin + x2 * cos], dim=-1)
 
-    def forward(self, x):
-        xr = x[:, 0::2, :]
-        xi = x[:, 1::2, :]
-        cos_th = self.pe[: x.size(1), 0::2]
-        sin_th = self.pe[: x.size(1), 1::2]
-
-        rot_r = xr * cos_th - xi * sin_th
-        rot_i = xr * sin_th + xi * cos_th
-
-        x_rot = torch.empty_like(x)
+        if self.dbg:
+            print("RotationalPositionalEncoding forward pass:")
+            print(f"x: {x}")
+            print(f"x1: {x1}")
+            print(f"x2: {x2}")
+            print(f"rotated: {rotated}")
+            print(f"sin: {sin}")
+            print(f"cos: {cos}")
         
-        x_rot[:, 0::2, :] = rot_r
-        x_rot[:, 1::2, :] = rot_i
+#        import IPython
+#        IPython.embed()
+#        1/0
 
-        return x_rot
-
-
+        return rotated

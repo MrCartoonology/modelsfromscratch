@@ -1,44 +1,53 @@
 import torch
 import numpy as np
-import pytest
-
-import modelsfromscratch.positionalencoding as pe
 
 
-def test_mul_rotational_positional_encoding():
-    seq_len = 4
-    emb_dim = 4  # must be even for real/imag split
+from modelsfromscratch.positionalencoding import (
+    get_pos_encoding_frequencies,
+    RotationalPositionalEncoding
+)
+
+ 
+def test_get_pos_encoding_frequencies():
     wave_dim = 10.0
+    model_dim = 6
 
-    # Create a small input tensor: batch_size=1, seq_len=4, emb_dim=4
-    # We'll set real parts in 0::2 and imaginary parts in 1::2
-    x = torch.zeros(1, seq_len, emb_dim)
-    for i in range(seq_len):
-        x[0, i, 0] = i     # real part for dim 0
-        x[0, i, 1] = 0     # imag part for dim 0
-        x[0, i, 2] = 0     # real part for dim 1
-        x[0, i, 3] = i     # imag part for dim 1
+    twoi = np.array([0.0, 2.0, 4.0])
+    twoi_ovr_d = twoi / model_dim
+    rates = wave_dim ** twoi_ovr_d
+    factors = 1.0 / rates
+    expected = torch.tensor(factors, dtype=torch.float32)
+    
+    predicted = get_pos_encoding_frequencies(wave_dim=wave_dim, model_dim=model_dim)
+    assert torch.allclose(predicted, expected), f"Frequencies mismatch:\nExpected {expected}\nGot {predicted}"
 
-    # Instantiate the encoding module
-    mpe = pe.MulRotationalPositionalEncoding(seq_len, emb_dim, wave_dim)
-    x_rot = mpe(x)
 
-    # Compute expected rotated result manually
-    pe = mpe.pe.detach().numpy()
-    expected = torch.zeros_like(x)
+def test_rotational_pe():
+    wave_dim = 10.0
+    model_dim = 4
+    seq_len = 4
+    batch_size = 1
 
-    for i in range(seq_len):
-        # Real part at 0::2, Imag part at 1::2
-        for d in range(0, emb_dim, 2):
-            xr = x[0, i, d].item()
-            xi = x[0, i, d + 1].item()
-            cos_th = pe[i, d]
-            sin_th = pe[i, d + 1]
+    X = torch.randn(batch_size, seq_len, model_dim)
+    freq = get_pos_encoding_frequencies(wave_dim=wave_dim, model_dim=model_dim)
+    print("test freq: ", freq)
+    expected = torch.zeros_like(X)
+    print("test X: ", X)
 
-            rot_r = xr * cos_th - xi * sin_th
-            rot_i = xr * sin_th + xi * cos_th
+    for b in range(batch_size):
+        for s in range(seq_len):
+            for d in range(0, model_dim, 2):
+                start = d
+                end = d + 2
+                v = X[b, s, start:end]
+                theta = freq[d // 2] * s
+                print("test b,s,d, v, theta: ", b, s, d, v, theta)
+                rotation_matrix = torch.tensor([
+                    [torch.cos(theta), -torch.sin(theta)],
+                    [torch.sin(theta), torch.cos(theta)]
+                ], dtype=torch.float32)
+                rotated = torch.matmul(rotation_matrix, v)
+                expected[b, s, start:end] = rotated[:]
 
-            expected[0, i, d] = rot_r
-            expected[0, i, d + 1] = rot_i
-
-    assert torch.allclose(x_rot, expected, atol=1e-5), "Rotation mismatch"
+    predicted = RotationalPositionalEncoding(wave_dim=wave_dim, seq_len=seq_len, model_dim=model_dim, dbg=True)(X)
+    torch.testing.assert_close(predicted, expected, rtol=1e-5, atol=1e-8)

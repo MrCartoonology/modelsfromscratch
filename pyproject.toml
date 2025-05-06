@@ -20,6 +20,7 @@ dependencies = [
     "matplotlib>=3.9.4",
     "mplcursors>=0.6",
     "numpy>=2.0.2",
+    "opt-einsum>=3.4.0",
     "pandas>=2.2.3",
     "peft>=0.15.2",
     "plotly>=6.0.1",
