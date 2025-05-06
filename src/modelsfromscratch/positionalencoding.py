@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import torch.nn as nn
 
@@ -44,18 +43,23 @@ def rotate_pairs(A: torch.tensor, theta: torch.tensor) -> torch.tensor:
 
 
 class RotationalPositionalEncoding(nn.Module):
-    def __init__(self, freq_base: int, seq_len: int, model_dim: int, device: str = "cpu"):
+    def __init__(
+        self, freq_base: int, seq_len: int, model_dim: int, device: str = "cpu"
+    ):
         super(RotationalPositionalEncoding, self).__init__()
         self.freq_base = freq_base
         self.seq_len = seq_len
         self.model_dim = model_dim
 
-        freqs = get_pos_encoding_frequencies(freq_base=self.freq_base, model_dim=self.model_dim).to(device)  # [dim/2]
+        freqs = get_pos_encoding_frequencies(
+            freq_base=self.freq_base, model_dim=self.model_dim
+        ).to(
+            device
+        )  # [dim/2]
         pos = torch.arange(seq_len, device=device).float()  # [seq_len]
 
-        angles = torch.einsum('i,j->ij', pos, freqs)  # [seq_len, dim/2]
+        angles = torch.einsum("i,j->ij", pos, freqs)  # [seq_len, dim/2]
         self.register_buffer("angles", angles)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size, _, _ = x.shape
         return rotate_pairs(x, self.angles)

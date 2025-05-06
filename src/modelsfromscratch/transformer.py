@@ -1,5 +1,5 @@
 import torch.nn as nn
-from modelsfromscratch.multiheadattn import MultiHeadAttn
+from modelsfromscratch.multiheadattn import MultiHeadAttnWithRoPE
 from modelsfromscratch.positionalencoding import RotationalPositionalEncoding
 
 
@@ -12,6 +12,8 @@ class TransformerLM(nn.Module):
         num_heads: int = 4,
         ff_hidden_dim=2048,
         seq_len=512,
+        freq_base=10000,
+        device="cpu",
     ):
         super(TransformerLM, self).__init__()
         self.vocab_size = vocab_size
@@ -25,14 +27,17 @@ class TransformerLM(nn.Module):
             num_embeddings=vocab_size, embedding_dim=model_dim
         )
 
-        self.pos_embed = RotationalPositionalEncoding(
-            freq_base=10000, model_dim=model_dim
+        self.rope_encoder = RotationalPositionalEncoding(
+            freq_base=freq_base, model_dim=model_dim, device=device, seq_len=seq_len
         )
 
         self.transformer_blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    model_dim=model_dim, ff_dim=ff_hidden_dim, num_heads=num_heads
+                    model_dim=model_dim,
+                    ff_dim=ff_hidden_dim,
+                    num_heads=num_heads,
+                    rope_encoder=self.rope_encoder,
                 )
                 for _ in range(depth)
             ]
@@ -41,7 +46,6 @@ class TransformerLM(nn.Module):
 
     def forward(self, inputs):
         X = self.token_embed(inputs)
-        X = self.pos_embed(X)
         for i in range(self.depth):
             X = self.transformer_blocks[i](X)
         logits = self.logits(X)
@@ -49,11 +53,14 @@ class TransformerLM(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-    def __init__(self, model_dim, ff_dim, num_heads):
+    def __init__(self, model_dim, ff_dim, num_heads, rope_encoder):
         super(TransformerBlock, self).__init__()
         self.model_dim = model_dim
         self.num_heads = num_heads
-        self.multi_headed_attn = MultiHeadAttn(model_dim=model_dim, n_heads=num_heads)
+        self.rope_encoder = rope_encoder
+        self.multi_headed_attn = MultiHeadAttnWithRoPE(
+            model_dim=model_dim, num_heads=num_heads, rope_encoder=rope_encoder
+        )
         self.ln1 = nn.LayerNorm(model_dim)
         self.ff = nn.Sequential(
             nn.Linear(in_features=model_dim, out_features=ff_dim),

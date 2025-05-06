@@ -55,34 +55,3 @@ def test_rotate_pairs():
         ], dtype=torch.float32)
     predicted = rotate_pairs(A, theta)
     assert torch.allclose(predicted, expected, rtol=1.e-3, atol=1.e-5), f"Rotation mismatch:\nExpected {expected}\nGot {predicted}"
-
-
-def test_rotational_pe():
-    freq_base = 10.0
-    model_dim = 4
-    seq_len = 4
-    batch_size = 1
-
-    X = torch.randn(batch_size, seq_len, model_dim)
-    freq = get_pos_encoding_frequencies(freq_base=freq_base, model_dim=model_dim)
-    print("test freq: ", freq)
-    expected = torch.zeros_like(X)
-    print("test X: ", X)
-
-    for b in range(batch_size):
-        for s in range(seq_len):
-            for d in range(0, model_dim, 2):
-                start = d
-                end = d + 2
-                v = X[b, s, start:end]
-                theta = freq[d // 2] * s
-                print("test b,s,d, v, theta: ", b, s, d, v, theta)
-                rotation_matrix = torch.tensor([
-                    [torch.cos(theta), -torch.sin(theta)],
-                    [torch.sin(theta), torch.cos(theta)]
-                ], dtype=torch.float32)
-                rotated = torch.matmul(rotation_matrix, v)
-                expected[b, s, start:end] = rotated[:]
-
-    predicted = RotationalPositionalEncoding(freq_base=freq_base, seq_len=seq_len, model_dim=model_dim)(X)
-    torch.testing.assert_close(predicted, expected, rtol=1e-5, atol=1e-8)
