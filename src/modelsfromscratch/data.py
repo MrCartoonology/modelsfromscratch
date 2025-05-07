@@ -75,12 +75,12 @@ def split_files(
     return train_files, val_files, train_mb, val_mb
 
 
-def report_files_and_sizes(files_and_sizes: List[Tuple[str, int]]) -> None:
+def report_files_and_sizes(files_and_sizes: List[Tuple[str, int]], cfg: dict) -> None:
     orig_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
-    files_and_sizes = apply_max_mb_filter(
+    new_files_and_sizes = apply_max_mb_filter(
         files_and_sizes=files_and_sizes, max_mb=cfg["max_mb"]
     )
-    new_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
+    new_total = sum(size for _, size in new_files_and_sizes) / (1024 * 1024)
     print(f"Original total size: {orig_total:.2f} MB")
     print(f"New total size: {new_total:.2f} MB")
     print(f"Number of files: {len(files_and_sizes)}")
@@ -89,7 +89,7 @@ def report_files_and_sizes(files_and_sizes: List[Tuple[str, int]]) -> None:
 def get_dataloaders(res: RunTracker) -> DataLoader:
     cfg = res.cfg["dataloader"]
     files_and_sizes = list(iter_files(**cfg["files"]))
-    report_files_and_sizes(files_and_sizes)
+    report_files_and_sizes(files_and_sizes, cfg=cfg)
 
     train_files, val_files, train_mb, val_mb = split_files(
         files_and_sizes, cfg["train_ratio"], verbose=True
@@ -122,5 +122,5 @@ def files_to_token_ids(files: List[str], tokenizer: AutoTokenizer) -> torch.Tens
         with open(fname, "r", encoding="utf-8") as f:
             all_text += f.read() + "\n"
     token_ids = tokenizer.encode(all_text, add_special_tokens=False)
-    token_ids = torch.tensor(token_ids)
+    token_ids = torch.tensor(token_ids, device="cpu")
     return token_ids

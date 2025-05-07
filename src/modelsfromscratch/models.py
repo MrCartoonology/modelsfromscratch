@@ -37,13 +37,22 @@ def load_model(res: RunTracker) -> nn.Module:
     seq_len = cfg["dataloader"]["seq_len"]
     mdl_cfg = cfg["models"][model_name]
     device = cfg["device"]
+    # Determine the actual device to use
+    if device == "auto":
+        if torch.backends.mps.is_available():
+            device = "mps"
+        elif torch.cuda.is_available():
+            device = "cuda"
+        else:
+            device = "cpu"
+    print(f"Using device: {device}")
 
     if model_name == "basic_rnn":
         model = BasicRNNModel(vocab_size=num_token_ids, **mdl_cfg)
     elif model_name == "transformer":
         model = TransformerLM(
             num_token_ids=num_token_ids, seq_len=seq_len, device=device, **mdl_cfg
-        )
+        ).to(device)
     else:
         raise ValueError(f"Model {model_name} not implemented yet.")
 

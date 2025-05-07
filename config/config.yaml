@@ -2,7 +2,7 @@ drop_into_debugger_on_error: True
 drop_into_ipython_on_ctrl_c: True
 #tokenizer: "bert-base-uncased"
 tokenizer: "Salesforce/codegen-350M-mono"
-device: "cpu"
+device: "mps"
 
 dataloader:
 #  data_dir: "/Users/davidschneider/data/language/books/project_gutenberg"
