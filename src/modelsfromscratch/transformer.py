@@ -6,7 +6,7 @@ from modelsfromscratch.positionalencoding import RotationalPositionalEncoding
 class TransformerLM(nn.Module):
     def __init__(
         self,
-        vocab_size: int,
+        num_token_ids: int,
         model_dim: int,
         depth: int = 6,
         num_heads: int = 4,
@@ -16,7 +16,7 @@ class TransformerLM(nn.Module):
         device="cpu",
     ):
         super(TransformerLM, self).__init__()
-        self.vocab_size = vocab_size
+        self.num_token_ids = num_token_ids
         self.model_dim = model_dim
         self.depth = depth
         self.num_heads = num_heads
@@ -24,7 +24,7 @@ class TransformerLM(nn.Module):
         self.seq_len = seq_len
 
         self.token_embed = nn.Embedding(
-            num_embeddings=vocab_size, embedding_dim=model_dim
+            num_embeddings=num_token_ids, embedding_dim=model_dim
         )
 
         self.rope_encoder = RotationalPositionalEncoding(
@@ -42,7 +42,7 @@ class TransformerLM(nn.Module):
                 for _ in range(depth)
             ]
         )
-        self.logits = nn.Linear(in_features=model_dim, out_features=vocab_size)
+        self.logits = nn.Linear(in_features=model_dim, out_features=num_token_ids)
 
     def forward(self, inputs):
         X = self.token_embed(inputs)

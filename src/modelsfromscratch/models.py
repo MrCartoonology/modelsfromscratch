@@ -18,10 +18,18 @@ class BasicRNNModel(nn.Module):
         return logits
 
 
+def count_parameters(model):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
+    total_mb = total_bytes / (1024 ** 2)
+    return total_params, trainable_params, total_mb
+
+
 def load_model(res: RunTracker) -> nn.Module:
     cfg = res.cfg
     tokenizer = res.tokenizer
-
+    num_token_ids = len(tokenizer)
     model_name = cfg["model_name"]
     assert (
         model_name in cfg["models"]
@@ -31,9 +39,17 @@ def load_model(res: RunTracker) -> nn.Module:
     device = cfg["device"]
 
     if model_name == "basic_rnn":
-        return BasicRNNModel(vocab_size=tokenizer.vocab_size, **mdl_cfg)
+        model = BasicRNNModel(vocab_size=num_token_ids, **mdl_cfg)
     elif model_name == "transformer":
-        return TransformerLM(
-            vocab_size=tokenizer.vocab_size, seq_len=seq_len, device=device, **mdl_cfg
+        model = TransformerLM(
+            num_token_ids=num_token_ids, seq_len=seq_len, device=device, **mdl_cfg
         )
-    raise ValueError(f"Model {model_name} not implemented yet.")
+    else:
+        raise ValueError(f"Model {model_name} not implemented yet.")
+    
+    print(model)
+    total, trainable, size_mb = count_parameters(model)
+    print(f"  Total params:     {total:,}")
+    print(f"  Trainable params: {trainable:,}")
+    print(f"  Model size:       {size_mb:.2f} MB")
+    return model

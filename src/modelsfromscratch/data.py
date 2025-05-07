@@ -59,9 +59,7 @@ def split_files(files_and_sizes: List[Tuple[str, int]], train_ratio: float) -> T
     return train_files, val_files, train_mb, val_mb
 
 
-def get_dataloaders(res: RunTracker) -> DataLoader:
-    cfg = res.cfg["dataloader"]
-    files_and_sizes = list(iter_files(**cfg["files"]))
+def report_files_and_sizes(files_and_sizes: List[Tuple[str, int]]) -> None:
     orig_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
     files_and_sizes = apply_max_mb_filter(files_and_sizes=files_and_sizes, max_mb=cfg["max_mb"])
     new_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
@@ -69,11 +67,22 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
     print(f"New total size: {new_total:.2f} MB")
     print(f"Number of files: {len(files_and_sizes)}")
 
+
+def get_dataloaders(res: RunTracker) -> DataLoader:
+    cfg = res.cfg["dataloader"]
+    files_and_sizes = list(iter_files(**cfg["files"]))
+    report_files_and_sizes(files_and_sizes)
+    
     train_files, val_files, train_mb, val_mb = split_files(files_and_sizes, cfg["train_ratio"])
     seq_len = cfg["seq_len"]
     batch_size = cfg["batch_size"]
 
     dataloaders = dict(train_files=train_files, val_files=val_files, train_mb=train_mb, val_mb=val_mb)
+    print(f"Train size: {train_mb:.2f} MB")
+    print(f"Validation size: {val_mb:.2f} MB")
+    print(f"Number of training files: {len(train_files)}")
+    print(f"Number of validation files: {len(val_files)}")
+    print(f"tokenizer vocab size: {res.tokenizer.vocab_size}")
 
     for split, files in zip(['train', 'val'], [train_files, val_files]):
         all_text = ""

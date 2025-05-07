@@ -1,5 +1,7 @@
 drop_into_debugger_on_error: True
-tokenizer: "bert-base-uncased"
+drop_into_ipython_on_ctrl_c: True
+#tokenizer: "bert-base-uncased"
+tokenizer: "Salesforce/codegen-350M-mono"
 device: "cpu"
 
 dataloader:
@@ -14,15 +16,15 @@ dataloader:
       - ".py"
   max_mb: 100
   train_ratio: 0.8
-  seq_len: 128
-  batch_size: 64
+  seq_len: 512
+  batch_size: 16
   shuffle: True
 
 model_name: "transformer"
 models:
   transformer:
-    model_dim: 64
-    depth: 6
+    model_dim: 512
+    depth: 8
     num_heads: 4
     ff_hidden_dim: 2048
     freq_base: 10000
@@ -31,7 +33,7 @@ models:
     embedding_dim: 128
     hidden_dim: 256
 train:
-  epochs: 1
-  stop_after_two_steps: True
-  learning_rate: 0.01
-  max_grad_norm: 5.0
+  epochs: 5
+  steps: 0
+  learning_rate: 0.0005
+  max_grad_norm: 1.0
