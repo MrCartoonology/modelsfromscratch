@@ -75,21 +75,16 @@ def split_files(
     return train_files, val_files, train_mb, val_mb
 
 
-def report_files_and_sizes(files_and_sizes: List[Tuple[str, int]], cfg: dict) -> None:
-    orig_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
-    new_files_and_sizes = apply_max_mb_filter(
-        files_and_sizes=files_and_sizes, max_mb=cfg["max_mb"]
-    )
-    new_total = sum(size for _, size in new_files_and_sizes) / (1024 * 1024)
-    print(f"Original total size: {orig_total:.2f} MB")
-    print(f"New total size: {new_total:.2f} MB")
-    print(f"Number of files: {len(files_and_sizes)}")
-
-
 def get_dataloaders(res: RunTracker) -> DataLoader:
     cfg = res.cfg["dataloader"]
     files_and_sizes = list(iter_files(**cfg["files"]))
-    report_files_and_sizes(files_and_sizes, cfg=cfg)
+    orig_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
+    print(f"Original total size: {orig_total:.2f} MB across {len(files_and_sizes)} files")
+
+    files_and_sizes = apply_max_mb_filter(
+        files_and_sizes=files_and_sizes, max_mb=cfg["max_mb"]
+    )
+    print(f"New total size: {sum(size for _, size in files_and_sizes) / (1024 * 1024):.2f} MB across {len(files_and_sizes)} files")
 
     train_files, val_files, train_mb, val_mb = split_files(
         files_and_sizes, cfg["train_ratio"], verbose=True
@@ -99,7 +94,9 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
     seq_len = cfg["seq_len"]
     batch_size = cfg["batch_size"]
 
-    for split, files, mb in zip(["train", "val"], [train_files, val_files], [train_mb, val_mb]):
+    for split, files, mb in zip(
+        ["train", "val"], [train_files, val_files], [train_mb, val_mb]
+    ):
         token_ids = files_to_token_ids(files=files, tokenizer=res.tokenizer)
         # 3. Chunk into sequences
         num_chunks = len(token_ids) // seq_len
@@ -112,7 +109,9 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
             num_chunks=num_chunks,
             files=files,
             mb=mb,
+            num_tokens=token_ids.numel()
         )
+        print(f"{split} size: {mb:.2f} MB {token_ids.numel()} tokens")
     return dataloaders
 
 

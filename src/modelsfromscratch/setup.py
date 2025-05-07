@@ -1,20 +1,11 @@
+import os
 import sys
 import ipdb
 import traceback
-import torch
 import yaml
 from pathlib import Path
-from typing import List, Tuple
-
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    TrainingArguments,
-    PreTrainedTokenizerBase,
-    PreTrainedModel,
-)
-
-from peft import get_peft_model, LoraConfig, TaskType
+from torch.utils.tensorboard import SummaryWriter
+from modelsfromscratch.utils import get_timestamp
 
 
 def debug_hook(type_, value, tb):
@@ -76,3 +67,19 @@ class RunTracker(object):
         self.dataset = None
         self.model = None
         self.trainer = None
+        self.timestamp = None
+        self.logdir = None
+        self.train_writer = None
+        self.val_writer = None
+        self.train_losses = []
+        self.val_losses = []
+
+
+def setup_training(res: RunTracker) -> RunTracker:
+    # Get timestamp and create log directory
+    res.timestamp = get_timestamp()
+    res.logdir = res.cfg["train"]["logdir"].format(timestamp=res.timestamp)
+    os.makedirs(res.logdir, exist_ok=True)
+    res.train_writer = SummaryWriter(res.logdir + "/train")
+    res.val_writer = SummaryWriter(res.logdir + "/val")
+    return res

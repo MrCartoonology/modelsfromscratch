@@ -13,7 +13,7 @@ def run(cfg_fname: str = CFG_FNAME):
     res.tokenizer = data.get_tokenizer(cfg=cfg)
     res.dataloaders = data.get_dataloaders(res=res)
     res.model = models.load_model(res=res)
-    train.train(res=res)
+    res = train.train(res=res)
 
 
 if __name__ == "__main__":
