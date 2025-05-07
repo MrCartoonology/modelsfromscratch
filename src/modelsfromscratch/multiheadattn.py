@@ -4,7 +4,9 @@ from modelsfromscratch.positionalencoding import RotationalPositionalEncoding
 
 
 class MultiHeadAttnWithRoPE(nn.Module):
-    def __init__(self, model_dim: int, num_heads: int, rope_encoder: RotationalPositionalEncoding):
+    def __init__(
+        self, model_dim: int, num_heads: int, rope_encoder: RotationalPositionalEncoding
+    ):
         super(MultiHeadAttnWithRoPE, self).__init__()
         assert model_dim % num_heads == 0, "model dim must be divisible by n_heads"
         self.model_dim = model_dim
@@ -56,10 +58,14 @@ if __name__ == "__main__":
     seq_len = 10
     batch_size = 2
 
-    rope_encoder = RotationalPositionalEncoding(freq_base=10000, seq_len=seq_len, model_dim=model_dim)
-    attn_layer = MultiHeadAttnWithRoPE(model_dim=model_dim, num_heads=num_heads, rope_encoder=rope_encoder)
+    rope_encoder = RotationalPositionalEncoding(
+        freq_base=10000, seq_len=seq_len, model_dim=model_dim
+    )
+    attn_layer = MultiHeadAttnWithRoPE(
+        model_dim=model_dim, num_heads=num_heads, rope_encoder=rope_encoder
+    )
 
     X = torch.randn(batch_size, seq_len, model_dim)
     output = attn_layer(X)
     print(output.shape)  # Should be [batch_size, seq_len, model_dim]
-    # Check if the output shape is correct  
+    # Check if the output shape is correct

@@ -20,7 +20,7 @@ def train(res: RunTracker):
         signal.signal(signal.SIGINT, control_c_handler)
 
     model = res.model
-    train_dataloader = res.dataloaders['train']
+    train_dataloader = res.dataloaders["train"]
     cfg = res.cfg["train"]
 
     loss = torch.nn.CrossEntropyLoss()
@@ -28,7 +28,7 @@ def train(res: RunTracker):
     model.train()
     for epoch in range(cfg["epochs"]):
         for step, batch in enumerate(train_dataloader):
-            if cfg["steps"] > 0 and step >= cfg['steps']:
+            if cfg["steps"] > 0 and step >= cfg["steps"]:
                 break
             x, y = batch
             pred = model(x)  # [batch_size, seq_len, vocab_size]
