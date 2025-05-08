@@ -14,6 +14,7 @@ def run(cfg_fname: str = CFG_FNAME):
     res.dataloaders = data.get_dataloaders(res=res)
     res.model = models.load_model(res=res)
     res = train.train(res=res)
+    
 
 
 if __name__ == "__main__":

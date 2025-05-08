@@ -62,4 +62,5 @@ class RotationalPositionalEncoding(nn.Module):
         self.register_buffer("angles", angles)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return rotate_pairs(x, self.angles)
+        _, seq_len, _ = x.size()
+        return rotate_pairs(x, self.angles[:seq_len, :])

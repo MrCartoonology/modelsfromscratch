@@ -14,32 +14,48 @@ dataloader:
     only_include_specified_extensions: True  
     specified_extensions:
       - ".py"
-  max_mb: 300   # debuggin, total size of all files, fast runs
-  train_ratio: 0.8
+  max_mb: 100   # debuggin, total size of all files, fast runs
+  train_ratio: 0.9
   seq_len: 512
-  batch_size: 80
+  batch_size: 100
   shuffle: True
 
 model_name: "transformer"
 models:
   transformer:
-    model_dim: 512
-    depth: 8
+    model_dim: 448
+    depth: 4
     num_heads: 4
-    ff_hidden_dim: 2048
+    ff_hidden_dim: 1024
     freq_base: 10000
   
   basic_rnn:
     embedding_dim: 128
     hidden_dim: 256
-train:
-  num_epochs: 1
-  max_steps: 0
+optim:
+  name: "AdamW"
   learning_rate: 0.0005
+  adam_args:
+    betas: [0.9, 0.98]
+    eps: 1.e-8
+    weight_decay: 0.01
+train:
+  num_epochs: 20
+  max_steps: 0
   max_grad_norm: 1.0
   logdir: "logs/{timestamp}"
+  savedir: "saved_models/{timestamp}"
+  save: True
+  save_every_epoch: True
+  
 eval:
-  enable: False
-  train_steps_between_evals: 9
-  steps_for_eval: 20
-  compute_checksum: True
+  enable: True
+  train_steps_between_evals: 40
+  steps_for_eval: 10
+  compute_checksum: False
+prompt:
+  enable: True
+  train_steps_between_prompts: 120
+  temperature: 0.7
+  num_tokens: 35
+  max_loss: 33.0

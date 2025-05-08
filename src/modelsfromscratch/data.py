@@ -79,12 +79,16 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
     cfg = res.cfg["dataloader"]
     files_and_sizes = list(iter_files(**cfg["files"]))
     orig_total = sum(size for _, size in files_and_sizes) / (1024 * 1024)
-    print(f"Original total size: {orig_total:.2f} MB across {len(files_and_sizes)} files")
+    print(
+        f"Original total size: {orig_total:.2f} MB across {len(files_and_sizes)} files"
+    )
 
     files_and_sizes = apply_max_mb_filter(
         files_and_sizes=files_and_sizes, max_mb=cfg["max_mb"]
     )
-    print(f"New total size: {sum(size for _, size in files_and_sizes) / (1024 * 1024):.2f} MB across {len(files_and_sizes)} files")
+    print(
+        f"New total size: {sum(size for _, size in files_and_sizes) / (1024 * 1024):.2f} MB across {len(files_and_sizes)} files"
+    )
 
     train_files, val_files, train_mb, val_mb = split_files(
         files_and_sizes, cfg["train_ratio"], verbose=True
@@ -102,16 +106,18 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
         num_chunks = len(token_ids) // seq_len
         inputs = token_ids[: num_chunks * seq_len].view(num_chunks, seq_len)
         targets = token_ids[1 : num_chunks * seq_len + 1].view(num_chunks, seq_len)
-
         dataset = TensorDataset(inputs, targets)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         dataloaders[split] = dict(
-            dataloader=DataLoader(dataset, batch_size=batch_size, shuffle=True),
+            dataloader=dataloader,
             num_chunks=num_chunks,
             files=files,
             mb=mb,
-            num_tokens=token_ids.numel()
+            num_tokens=token_ids.numel(),
         )
-        print(f"{split} size: {mb:.2f} MB {token_ids.numel()} tokens")
+        print(
+            f"{split:8s}: {len(files):4d} files, {mb:6.1f} MB, {len(token_ids):9d} tokens, {num_chunks:8d} seq_len={seq_len:4d} chunks, and {len(dataloader):5d} steps per epoch."
+        )
     return dataloaders
 
 
