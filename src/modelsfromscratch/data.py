@@ -93,15 +93,21 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
     train_files, val_files, train_mb, val_mb = split_files(
         files_and_sizes, cfg["train_ratio"], verbose=True
     )
+    dataloaders = get_dataloaders_from_files(cfg=cfg, train_files=train_files, val_files=val_files, tokenizer=res.tokenizer)
+    for split, files, mb in zip(['train', 'val'], [train_files, val_files], [train_mb, val_mb]):
+        dataloaders[split]['mb'] = mb
+        num_tokens = dataloaders[split]['num_tokens']
+        n_steps = len(dataloaders[split]['dataloader'])
+        print(f"{split:8s}: {len(files):4d} files, {mb:6.1f} MB, {num_tokens:9d} tokens, {num_chunks:8d} seq_len={seq_len:4d} chunks, and {n_steps:5d} steps per epoch.")
 
+
+def get_dataloaders_from_files(cfg: dict, train_files: List[str], val_files: List[str], tokenizer: AutoTokenizer):
     dataloaders = dict()
     seq_len = cfg["seq_len"]
     batch_size = cfg["batch_size"]
 
-    for split, files, mb in zip(
-        ["train", "val"], [train_files, val_files], [train_mb, val_mb]
-    ):
-        token_ids = files_to_token_ids(files=files, tokenizer=res.tokenizer)
+    for split, files in zip(["train", "val"], [train_files, val_files]):
+        token_ids = files_to_token_ids(files=files, tokenizer=tokenizer)
         # 3. Chunk into sequences
         num_chunks = len(token_ids) // seq_len
         inputs = token_ids[: num_chunks * seq_len].view(num_chunks, seq_len)
@@ -112,11 +118,7 @@ def get_dataloaders(res: RunTracker) -> DataLoader:
             dataloader=dataloader,
             num_chunks=num_chunks,
             files=files,
-            mb=mb,
             num_tokens=token_ids.numel(),
-        )
-        print(
-            f"{split:8s}: {len(files):4d} files, {mb:6.1f} MB, {len(token_ids):9d} tokens, {num_chunks:8d} seq_len={seq_len:4d} chunks, and {len(dataloader):5d} steps per epoch."
         )
     return dataloaders
 

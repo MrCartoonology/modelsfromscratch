@@ -44,11 +44,21 @@ class TransformerLM(nn.Module):
         )
         self.logits = nn.Linear(in_features=model_dim, out_features=num_token_ids)
 
-    def forward(self, inputs):
+    def forward(self, inputs, return_attn=False):
         X = self.token_embed(inputs)
+        transformer_block_attn_weights = []
+
         for i in range(self.depth):
-            X = self.transformer_blocks[i](X)
+            res = self.transformer_blocks[i](X, return_attn=return_attn)
+            if return_attn:
+                X, attn_weights = res
+                transformer_block_attn_weights.append(attn_weights)
+            else:
+                X = res
         logits = self.logits(X)
+
+        if return_attn:
+            return logits, transformer_block_attn_weights
         return logits
 
 
@@ -58,6 +68,7 @@ class TransformerBlock(nn.Module):
         self.model_dim = model_dim
         self.num_heads = num_heads
         self.rope_encoder = rope_encoder
+
         self.multi_headed_attn = MultiHeadAttnWithRoPE(
             model_dim=model_dim, num_heads=num_heads, rope_encoder=rope_encoder
         )
@@ -69,9 +80,16 @@ class TransformerBlock(nn.Module):
         )
         self.ln2 = nn.LayerNorm(model_dim)
 
-    def forward(self, X):
-        attn_out = self.multi_headed_attn(X)
+    def forward(self, X, return_attn=False):
+        res = self.multi_headed_attn(X, return_attn=return_attn)
+        if return_attn:
+            attn_out, attn_weights = res
+        else:
+            attn_out = res
+
         ln1_out = self.ln1(X + attn_out)
         ff_out = self.ff(ln1_out)
         ln2_out = self.ln2(ln1_out + ff_out)
+        if return_attn:
+            return ln2_out, attn_weights
         return ln2_out

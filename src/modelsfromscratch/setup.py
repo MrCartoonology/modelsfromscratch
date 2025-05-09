@@ -123,7 +123,6 @@ def save_model_and_meta(res: RunTracker, epoch: int = 0) -> str:
         }, checkpoint_pth)
     print(f"Saved model to {checkpoint_pth}")
 
-
     
 def setup_training(res: RunTracker) -> RunTracker:
     # Get timestamp and create log directory

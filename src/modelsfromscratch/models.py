@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from modelsfromscratch.setup import RunTracker
 from modelsfromscratch.transformer import TransformerLM
+from transformers import AutoTokenizer
 
 
 class BasicRNNModel(nn.Module):
@@ -29,6 +30,10 @@ def count_parameters(model):
 def load_model(res: RunTracker) -> nn.Module:
     cfg = res.cfg
     tokenizer = res.tokenizer
+    return load_model_from(cfg=cfg, tokenizer=tokenizer)
+
+
+def load_model_from(cfg: dict, tokenizer: AutoTokenizer):
     num_token_ids = len(tokenizer)
     model_name = cfg["model_name"]
     assert (

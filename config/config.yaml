@@ -14,8 +14,8 @@ dataloader:
     only_include_specified_extensions: True  
     specified_extensions:
       - ".py"
-  max_mb: 100   # debuggin, total size of all files, fast runs
-  train_ratio: 0.9
+  max_mb: 2   # debuggin, total size of all files, fast runs
+  train_ratio: 0.6
   seq_len: 512
   batch_size: 100
   shuffle: True
@@ -40,7 +40,7 @@ optim:
     eps: 1.e-8
     weight_decay: 0.01
 train:
-  num_epochs: 20
+  num_epochs: 2
   max_steps: 0
   max_grad_norm: 1.0
   logdir: "logs/{timestamp}"
@@ -50,12 +50,12 @@ train:
   
 eval:
   enable: True
-  train_steps_between_evals: 40
-  steps_for_eval: 10
+  train_steps_between_evals: 2
+  steps_for_eval: 2
   compute_checksum: False
 prompt:
   enable: True
-  train_steps_between_prompts: 120
+  train_steps_between_prompts: 2
   temperature: 0.7
   num_tokens: 35
   max_loss: 33.0
