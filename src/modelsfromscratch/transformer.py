@@ -27,8 +27,9 @@ class TransformerLM(nn.Module):
             num_embeddings=num_token_ids, embedding_dim=model_dim
         )
 
+        head_dim = model_dim // num_heads
         self.rope_encoder = RotationalPositionalEncoding(
-            freq_base=freq_base, model_dim=model_dim, device=device, seq_len=seq_len
+            freq_base=freq_base, model_dim=head_dim, device=device, seq_len=seq_len
         )
 
         self.transformer_blocks = nn.ModuleList(
