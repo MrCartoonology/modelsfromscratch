@@ -86,7 +86,8 @@ def calc_normalized_attn_support(cfg: dict, dataloaders: dict, model: nn.Module)
 def plot_attn_weights(attn_supports):
     plt.clf()
     for split, attn_supports in attn_supports.items():
-        plt.hist(attn_supports.flatten(), bins=1000, label=split, alpha=0.4)
+        mu = np.mean(attn_supports.flatten())
+        plt.hist(attn_supports.flatten(), bins=1000, label=f'{split} mean={mu:.3f}', alpha=0.4)
     plt.xlabel('normalized support')
     plt.ylabel('count')
     plt.legend()
