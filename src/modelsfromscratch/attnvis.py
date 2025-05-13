@@ -42,13 +42,17 @@ def num_batches(dataloaders):
     return n_batches
 
 
-def init_attn_support(cfg: dict, dataloaders: dict):
+def unpack_shape(cfg: dict, dataloaders: dict):
     n_batches = num_batches(dataloaders)
     seq_len = cfg['dataloader']['seq_len']
     n_blocks = cfg['models']['transformer']['depth']
     n_heads = cfg['models']['transformer']['num_heads']
     n_ex = cfg['dataloader']['batch_size'] * n_batches
-    shape = [n_blocks, n_heads, seq_len, n_ex]
+    return [n_blocks, n_heads, seq_len, n_ex]
+
+
+def init_attn_support(cfg: dict, dataloaders: dict):
+    shape = unpack_shape(cfg=cfg, dataloaders=dataloaders)
     return dict(train=np.zeros(shape=shape), val=np.zeros(shape=shape))
 
 
@@ -137,6 +141,81 @@ def plot_attn_weights_per_transformer_block_with_seq_len_filter(attn_supports, s
     plt.show()
 
 
+from IPython.display import HTML, display
+
+def visualize_attention(tokenizer, ids, attention):
+    """
+    Display tokens with background color intensity proportional to attention weights.
+    
+    Args:
+        tokenizer: a Hugging Face tokenizer instance
+        ids (List[int]): List of token IDs (length N+1)
+        attention (List[float]): List of attention weights (length N), values between 0 and 1
+    """
+    subwords = [tokenizer.decode(ids[idx:idx+1]) for idx in range(len(ids)-1)]
+    assert len(subwords) == len(attention)
+     # Build HTML spans
+    scale_f = 1 / np.max(attention)
+    spans = []
+    for subword, att in zip(subwords, attention):
+        # Use red with alpha based on attention weight
+        spans.append(
+            f'<span style="background-color: rgba(255,0,0,{scale_f * att:.2f}); '
+            'padding:2px; margin:1px; border-radius:3px;">'
+            f'{subword}'
+            '</span>'
+        )
+    
+    html = ' '.join(spans)
+    display(HTML(f"<div style='line-height:1.5; font-family:monospace;'>{html}</div>"))
+
+
+def calc_head_vs_layer_metrics(cfg: dict, tokenizer, dataloaders: dict, model: nn.Module, seq_filter=(100, 150), split='val') -> np.array:
+    """sum heads in a block to get a """
+    n_blocks, n_heads, seq_len, n_ex = unpack_shape(cfg=cfg, dataloaders=dataloaders)
+    seq_min, seq_max = seq_filter
+    num_seq_lens = seq_max - seq_min + 1
+
+    layer_attn_distributions = np.zeros(shape=(n_blocks, n_ex, num_seq_lens, seq_len), dtype=np.float32)
+    head_attn_distributions = np.zeros(shape=(n_blocks, n_ex, num_seq_lens, seq_len), dtype=np.float32)
+
+    divisors = np.arange(seq_min, seq_max + 1).reshape(1, 1, num_seq_lens, 1)  # shape (1, 1, S, 1)
+    batch_size = cfg['dataloader']['batch_size']
+
+    dl = dataloaders[split]['dataloader']
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(dl):
+            if (batch_idx + 1) * batch_size > n_ex:
+                continue
+            print(f"calc head vs layer split={split:8s} batch={batch_idx:5d}")
+            x, y = batch
+            x = x.to(cfg['device'])
+            y = y.to(cfg['device'])
+            logits, attn = model(x, return_attn=True)
+
+            ex = 50
+            nn = 100
+            nnp1 = nn + 1
+            ids = x.to('cpu').detach().numpy()[ex][0:nnp1]
+            attn00 = attn[0][0][ex][nn][0:nn].to('cpu').detach().numpy()
+            return tokenizer, ids, attn00
+        
+            import IPython
+            IPython.embed()
+            1/0
+            for block in range(n_blocks):
+                for head in range(n_heads):
+                    bh_attn = attn[block][head]
+                    na = batch_idx * batch_size
+                    nb = (batch_idx + 1) * batch_size
+                    attn_support[block, head, :, na:nb] = 2 ** entropies.T.detach().to('cpu')
+        attn_support /= divisors
+
+    return attn_supports
+
+
+
 def run(do_plots=True):
 #    savedir = "saved_models/20250507-1427"   # This is with rope bug
     savedir = "saved_models/20250512-1233"    # this is with rope fix
@@ -153,13 +232,15 @@ def run(do_plots=True):
     model = load_model_from(cfg=cfg, tokenizer=tokenizer)
     print("loading best model weights")
     model.load_state_dict(torch.load(model_pth)['model_state_dict'])
-
+    tokenizer, ids, attn00 = calc_head_vs_layer_metrics(cfg=cfg, tokenizer=tokenizer, dataloaders=dataloaders, model=model)
+    return tokenizer, ids, attn00
+    1/0
     attn_supports = calc_normalized_attn_support(cfg=cfg, dataloaders=dataloaders, model=model)
 
-    do_plots = True
     if do_plots:
         plot_attn_weights(attn_supports=attn_supports)
         plot_attn_weights_vs_seq_len(attn_supports=attn_supports)
+        plot_attn_weights_per_transformer_block_with_seq_len_filter(attn_supports=attn_supports, seq_len_interval=[100, 150])
 
     return attn_supports
 
