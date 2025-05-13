@@ -138,7 +138,8 @@ def plot_attn_weights_per_transformer_block_with_seq_len_filter(attn_supports, s
 
 
 def run(do_plots=True):
-    savedir = "saved_models/20250507-1427"
+#    savedir = "saved_models/20250507-1427"   # This is with rope bug
+    savedir = "saved_models/20250512-1233"    # this is with rope fix
     meta, _, _, model_pth = find_best_model(savedir)
     cfg = load_config(CFG_FNAME)
     tokenizer = get_tokenizer(cfg=cfg)
