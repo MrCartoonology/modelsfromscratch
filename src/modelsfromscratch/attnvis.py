@@ -1,8 +1,11 @@
-import numpy as np
 import yaml
+import numpy as np
+import matplotlib.pyplot as plt
+from IPython.display import HTML, display
+
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
+
 from modelsfromscratch.data import get_dataloaders_from_files, get_tokenizer
 from modelsfromscratch.setup import find_root, load_config
 from modelsfromscratch.models import load_model_from
@@ -11,7 +14,7 @@ CFG_FNAME = find_root() / "config/config.yaml"
 
 
 def find_best_model(savedir: str):
-    path = f"{savedir}/meta.yaml"
+    path = find_root() / f"{savedir}/meta.yaml"
     with open(path, "r") as f:  
         meta = yaml.unsafe_load(f)
     losses = [l for _, l in meta["val_losses"]]
@@ -141,9 +144,7 @@ def plot_attn_weights_per_transformer_block_with_seq_len_filter(attn_supports, s
     plt.show()
 
 
-from IPython.display import HTML, display
-
-def visualize_attention(tokenizer, ids, attention):
+def visualize_attention(tokenizer, ids, attention, label_id):
     """
     Display tokens with background color intensity proportional to attention weights.
     
@@ -152,72 +153,51 @@ def visualize_attention(tokenizer, ids, attention):
         ids (List[int]): List of token IDs (length N+1)
         attention (List[float]): List of attention weights (length N), values between 0 and 1
     """
-    subwords = [tokenizer.decode(ids[idx:idx+1]) for idx in range(len(ids)-1)]
-    assert len(subwords) == len(attention)
-     # Build HTML spans
-    scale_f = 1 / np.max(attention)
+    assert len(ids) == len(attention)
+    subwords = [tokenizer.decode([id_]) for id_ in ids]
+    alpha = np.clip((np.array(attention) / np.max(attention)), 0, 1)
+
     spans = []
-    for subword, att in zip(subwords, attention):
-        # Use red with alpha based on attention weight
+    for subword, att in zip(subwords, alpha):
+        # Escape angle brackets and ampersands
+        safe_subword = (subword.replace("&", "&amp;")
+                                .replace("<", "&lt;")
+                                .replace(">", "&gt;"))
         spans.append(
-            f'<span style="background-color: rgba(255,0,0,{scale_f * att:.2f}); '
-            'padding:2px; margin:1px; border-radius:3px;">'
-            f'{subword}'
-            '</span>'
+            f'<span style="background-color: rgba(255,0,0,{att:.2f}); '
+            'padding:1px; margin:0px; border-radius:2px;">'
+            f'{safe_subword}</span>'
         )
-    
-    html = ' '.join(spans)
-    display(HTML(f"<div style='line-height:1.5; font-family:monospace;'>{html}</div>"))
+
+   # Add label token with yellow background
+    label_token = tokenizer.decode([label_id])
+    label_token = (label_token.replace("&", "&amp;")
+                               .replace("<", "&lt;")
+                               .replace(">", "&gt;"))
+    spans.append(
+        f'<span style="background-color: rgba(255,255,0,0.7); '
+        'padding:1px; margin-left:5px; border-radius:2px;">'
+        f'{label_token}</span>'
+    )
+    html = ''.join(spans)
+    display(HTML(f"<div style='white-space:pre-wrap; font-family:monospace; font-size: 14px'>{html}</div>"))
 
 
-def calc_head_vs_layer_metrics(cfg: dict, tokenizer, dataloaders: dict, model: nn.Module, seq_filter=(100, 150), split='val') -> np.array:
-    """sum heads in a block to get a """
-    n_blocks, n_heads, seq_len, n_ex = unpack_shape(cfg=cfg, dataloaders=dataloaders)
-    seq_min, seq_max = seq_filter
-    num_seq_lens = seq_max - seq_min + 1
+def visualize_example(split, seq_len, tokenizer, ids, attn_heads, label_id):
+    plt.figure(figsize=(12, 6))
+    for ii, h in enumerate(attn_heads):
+        plt.plot(h, label=f'head {ii}')
+        plt.legend()
+    plt.title(f"Random {split} Example of {seq_len} Tokens Input Layer Attention distributions");
+    plt.xlabel("past sequence token")
+    plt.show()
 
-    layer_attn_distributions = np.zeros(shape=(n_blocks, n_ex, num_seq_lens, seq_len), dtype=np.float32)
-    head_attn_distributions = np.zeros(shape=(n_blocks, n_ex, num_seq_lens, seq_len), dtype=np.float32)
-
-    divisors = np.arange(seq_min, seq_max + 1).reshape(1, 1, num_seq_lens, 1)  # shape (1, 1, S, 1)
-    batch_size = cfg['dataloader']['batch_size']
-
-    dl = dataloaders[split]['dataloader']
-    model.eval()
-    with torch.no_grad():
-        for batch_idx, batch in enumerate(dl):
-            if (batch_idx + 1) * batch_size > n_ex:
-                continue
-            print(f"calc head vs layer split={split:8s} batch={batch_idx:5d}")
-            x, y = batch
-            x = x.to(cfg['device'])
-            y = y.to(cfg['device'])
-            logits, attn = model(x, return_attn=True)
-
-            ex = 50
-            nn = 100
-            nnp1 = nn + 1
-            ids = x.to('cpu').detach().numpy()[ex][0:nnp1]
-            attn00 = attn[0][0][ex][nn][0:nn].to('cpu').detach().numpy()
-            return tokenizer, ids, attn00
-        
-            import IPython
-            IPython.embed()
-            1/0
-            for block in range(n_blocks):
-                for head in range(n_heads):
-                    bh_attn = attn[block][head]
-                    na = batch_idx * batch_size
-                    nb = (batch_idx + 1) * batch_size
-                    attn_support[block, head, :, na:nb] = 2 ** entropies.T.detach().to('cpu')
-        attn_support /= divisors
-
-    return attn_supports
+    for ii, head in enumerate(attn_heads):
+        display(HTML(f"<h2>Head {ii}</h2>"))
+        visualize_attention(tokenizer=tokenizer, ids=ids, attention=head, label_id=label_id)
 
 
-
-def run(do_plots=True):
-#    savedir = "saved_models/20250507-1427"   # This is with rope bug
+def load_best_model_and_data():
     savedir = "saved_models/20250512-1233"    # this is with rope fix
     meta, _, _, model_pth = find_best_model(savedir)
     cfg = load_config(CFG_FNAME)
@@ -232,9 +212,97 @@ def run(do_plots=True):
     model = load_model_from(cfg=cfg, tokenizer=tokenizer)
     print("loading best model weights")
     model.load_state_dict(torch.load(model_pth)['model_state_dict'])
-    tokenizer, ids, attn00 = calc_head_vs_layer_metrics(cfg=cfg, tokenizer=tokenizer, dataloaders=dataloaders, model=model)
-    return tokenizer, ids, attn00
-    1/0
+    return cfg, tokenizer, dataloaders, model
+
+
+def vis_attn_over_tokens(split='train', batch_to_use=3, ex=24, seq_len=50):
+    cfg, tokenizer, dataloaders, model = load_best_model_and_data()
+    print("loaded model")
+    dl = dataloaders[split]['dataloader']
+    print("loaded dataloder")
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(dl):
+            if batch_idx != batch_to_use:
+                continue
+            x, y = batch
+            x = x.to(cfg['device'])
+            y = y.to(cfg['device'])
+            print(f"evaluating model on batch={batch_idx} of split={split}")
+            logits, attn = model(x, return_attn=True)
+            seq_len_p1 = seq_len + 1
+            ids = x.to('cpu').detach().numpy()[ex][0:seq_len_p1]
+            attn_blk1 = [attn[0][ii][ex][seq_len][0:seq_len].to('cpu').detach().numpy() for ii in range(len(attn[0]))]
+            return visualize_example(split=split, seq_len=seq_len, tokenizer=tokenizer, ids=ids[0:seq_len], attn_heads=attn_blk1, label_id=ids[seq_len])
+    print("done")        
+
+
+def calc_diversities_on_batch(heads, seq_len):
+    cdfs = []
+    for head in heads:
+        dist = head[:, seq_len, 0:seq_len].to('cpu').detach().numpy().astype(np.float64)
+        nc = np.sum(dist, axis=1)
+        dist /= np.reshape(nc, [-1, 1])
+        cdfs.append(np.cumsum(dist, axis=1))
+
+    emds = []
+    for ii, hA in enumerate(cdfs):
+        for jj in range(ii+1, len(cdfs)):
+            hB = cdfs[jj]
+            emds.append(np.sum(np.abs(hA - hB), axis=1))
+    return np.mean(np.stack(emds), axis=0)
+
+
+def attention_diversity(split='train', seq_len=50, layers=[0]):
+    cfg, tokenizer, dataloaders, model = load_best_model_and_data()
+    print("loaded model")
+    dl = dataloaders[split]['dataloader']
+    print("loaded dataloder")
+    model.eval()
+    attn_diversities = []
+
+    lowest = dict(score=None, ids=None)
+    highest = dict(score=None, ids=None)
+
+    def update_low_high(batch_diversities, lowest, highest, x):
+        min_idx = np.argmin(batch_diversities)
+        max_idx = np.argmax(batch_diversities)
+        min_div = batch_diversities[min_idx]
+        max_div = batch_diversities[max_idx]
+
+        if None is lowest['score'] or min_div < lowest['score']:
+            lowest['score'] = min_div
+            lowest['ids'] = x.to('cpu').detach().numpy()[min_idx, 0:seq_len+1]
+
+        if None is highest['score'] or max_div > highest['score']:
+            highest['score'] = max_div
+            highest['ids'] = x.to('cpu').detach().numpy()[max_idx, 0:seq_len+1]
+        return lowest, highest
+
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(dl):
+            x, y = batch
+            x = x.to(cfg['device'])
+            y = y.to(cfg['device'])
+            print(f"evaluating model on batch={batch_idx} of split={split}")
+            logits, attn = model(x, return_attn=True)
+            layers_div = []
+            for lyr, heads in enumerate(attn):
+                if lyr in layers:
+                    layers_div.append(calc_diversities_on_batch(heads=heads, seq_len=seq_len))
+            assert len(layers_div) > 0
+            batch_diversities = np.mean(np.stack(layers_div), axis=0)
+            lowest, highest = update_low_high(batch_diversities, lowest, highest, x)
+            attn_diversities.append(batch_diversities)
+    lowest['str'] = tokenizer.decode(lowest['ids'])
+    highest['str'] = tokenizer.decode(highest['ids'])
+    return np.concatenate(attn_diversities), lowest, highest
+    
+
+def run(do_plots=True):
+    """Used for normalized entropy analysis"""
+    cfg, tokenizer, dataloaders, model = load_best_model_and_data()
+#    savedir = "saved_models/20250507-1427"   # This is with rope bug
     attn_supports = calc_normalized_attn_support(cfg=cfg, dataloaders=dataloaders, model=model)
 
     if do_plots:
