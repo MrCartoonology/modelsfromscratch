@@ -11,7 +11,7 @@ class MultiHeadAttnWithRoPE(nn.Module):
         assert model_dim % num_heads == 0, "model dim must be divisible by n_heads"
         self.model_dim = model_dim
         self.num_heads = num_heads
-        self.rope_encoder = rope_encoder
+        self.rope_encoder = rope_encoder  # this has to be setup for head_dim - fix
         self.return_attn = return_attn
 
         self.head_dim = model_dim // num_heads
@@ -23,8 +23,8 @@ class MultiHeadAttnWithRoPE(nn.Module):
 
     def forward(self, X, return_attn=False):
         _, S, _ = X.size()
-        q = self.rope_encoder(self.Q(X))  # B x S x D
-        k = self.rope_encoder(self.K(X))
+        q = self.Q(X)
+        k = self.K(X)
         v = self.V(X)
 
         mask = torch.tril(torch.ones(S, S, device=X.device)).unsqueeze(0)  # [1, S, S]
@@ -34,8 +34,8 @@ class MultiHeadAttnWithRoPE(nn.Module):
         for head in range(self.num_heads):
             d1 = head * self.head_dim
             d2 = d1 + self.head_dim
-            qh = q[:, :, d1:d2]
-            kh = k[:, :, d1:d2]
+            qh = self.rope_encoder(q[:, :, d1:d2])
+            kh = self.rope_encoder(k[:, :, d1:d2])
             vh = v[:, :, d1:d2]
             res = calc_attn(Q=qh, K=kh, V=vh, mask=mask, return_attn=return_attn)
             if return_attn:
@@ -71,8 +71,9 @@ if __name__ == "__main__":
     seq_len = 10
     batch_size = 2
 
+    head_dim = model_dim // num_heads
     rope_encoder = RotationalPositionalEncoding(
-        freq_base=10000, seq_len=seq_len, model_dim=model_dim
+        freq_base=10000, seq_len=seq_len, model_dim=head_dim
     )
     attn_layer = MultiHeadAttnWithRoPE(
         model_dim=model_dim, num_heads=num_heads, rope_encoder=rope_encoder
