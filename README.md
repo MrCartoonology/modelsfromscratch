@@ -11,7 +11,7 @@ Follow up work in the post is done in different branches.
 ## Dependencies
 I've been using `uv` for the projects.
 
-## Walk through
+## Notes
 ### Data
 The transformer runs on all the python files from the pytorch repo, from commit `7a0781eaadd178a88fca6af826bb4990044ba6c8 ` dated  `Mon May 5 11:44:28 2025 -0700`.
 
@@ -34,4 +34,4 @@ or import `modelsfromscratch.attnvis` into a `ipytnon` or `jupyter notebook` ses
 
 * **fix_rope** - this reruns `pipeline.py` with a fixed version of RoPE
 
-* **attn_vis_fix_rope** - this reruns attnvis plots on the fixed rope
+* **attn_vis_fix_rope** - this reruns attnvis plots on the fixed rope. Some plots are done from [notebooks/transformer.ipynb](https://github.com/MrCartoonology/modelsfromscratch/blob/attnvis_fix_rope/notebooks/transformers.ipynb) from this branch.
