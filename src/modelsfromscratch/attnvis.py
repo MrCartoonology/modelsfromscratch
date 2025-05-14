@@ -297,6 +297,61 @@ def attention_diversity(split='train', seq_len=50, layers=[0]):
     lowest['str'] = tokenizer.decode(lowest['ids'])
     highest['str'] = tokenizer.decode(highest['ids'])
     return np.concatenate(attn_diversities), lowest, highest
+
+
+def most_least_support(split='train', seq_len=50):
+    cfg, tokenizer, dataloaders, model = load_best_model_and_data()
+    print("loaded model")
+    dl = dataloaders[split]['dataloader']
+    print("loaded dataloder")
+    model.eval()
+    min_supports = []
+    max_supports = []
+
+    max_min = dict(score=None, ids=None)
+    min_max = dict(score=None, ids=None)
+
+    def update_outliers(min_batch, max_batch, min_max, max_min, x):
+        min_idx = np.argmin(max_batch)
+        max_idx = np.argmax(min_batch)
+        batch_min_max = max_batch[min_idx]
+        batch_max_min = min_batch[max_idx]
+
+        if None is min_max['score'] or batch_min_max < min_max['score']:
+            min_max['score'] = batch_min_max
+            min_max['ids'] = x.to('cpu').detach().numpy()[min_idx, 0:seq_len + 1]
+
+        if None is max_min['score'] or batch_max_min > max_min['score']:
+            max_min['score'] = batch_max_min
+            max_min['ids'] = x.to('cpu').detach().numpy()[max_idx, 0:seq_len + 1]
+        return min_max, max_min
+
+    with torch.no_grad():
+        for batch_idx, batch in enumerate(dl):
+            x, y = batch
+            batch_size, _ = x.size()
+            x = x.to(cfg['device'])
+            y = y.to(cfg['device'])
+            print(f"evaluating model on batch={batch_idx} of split={split}")
+            logits, attn = model(x, return_attn=True)
+            num_blocks = 4; num_heads = 4; # hacking this in TODO FIX
+            batch_block_head_supports = np.empty(shape=(batch_size, num_blocks, num_heads))
+            for bi, block in enumerate(attn):
+                for hi, head in enumerate(block):
+                    entropies = masked_entropies_bits(head)
+                    supports = 2 ** entropies.to('cpu').detach().numpy()
+                    batch_block_head_supports[:, bi, hi] = supports[:, seq_len]
+            batch_max_supports = np.max(batch_block_head_supports, axis=(1, 2))
+            batch_min_supports = np.min(batch_block_head_supports, axis=(1, 2))
+            batch_block_head_supports = np.concat(batch_block_head_supports)
+            min_max, max_min = update_outliers(min_batch=batch_min_supports, max_batch=batch_max_supports, 
+                                               min_max=min_max, max_min=max_min, x=x)
+            min_supports.append(batch_min_supports)
+            max_supports.append(batch_max_supports)
+
+    min_max['str'] = tokenizer.decode(min_max['ids'])
+    max_min['str'] = tokenizer.decode(max_min['ids'])
+    return np.concatenate(min_supports), np.concatenate(max_supports), min_max, max_min
     
 
 def run(do_plots=True):
