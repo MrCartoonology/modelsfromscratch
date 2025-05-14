@@ -3,7 +3,7 @@ The intent of this repo is to build models from scratch to support posts on [htt
 
 Currently it has the transformer for the post [Exploring the Transformer](https://mrcartoonology.github.io/jekyll/update/2025/05/14/exploring_the_transformer.html). 
 
-The code was developed using mostly the original transformer paper and AI chats as reference. It may have flaws. In fact the main branch has a very interesting issue that
+The code was developed using mostly the original transformer paper and AI chats as reference. The main branch has a very interesting issue that
 is part of the story on the post [Exploring the Transformer](https://mrcartoonology.github.io/jekyll/update/2025/05/14/exploring_the_transformer.html). 
 
 Follow up work in the post is done in different branches. 
@@ -14,8 +14,6 @@ I've been using `uv` for the projects.
 ## Walk through
 ### Data
 The transformer runs on all the python files from the pytorch repo, from commit `7a0781eaadd178a88fca6af826bb4990044ba6c8 ` dated  `Mon May 5 11:44:28 2025 -0700`.
-
-If trying to re-create experiments, check out that commit.
 
 ## Run 
 To run, edit the [config file](https://github.com/MrCartoonology/modelsfromscratch/blob/main/config/config.yaml)
@@ -28,9 +26,12 @@ uv run python src/modelsfromscratch/pipeline.py
 
 ## Branches
 
-* attnvis - this creates plots to visualize the attention mechanism. It hacks in returning the attention distributions from the model. It is run from
+* **attnvis** - this creates plots to visualize the attention mechanism. It hacks in returning the attention distributions from the model. It is run from
 ```
-uv run python src/modelsfromscratch/pipeline.py 
+uv run python src/modelsfromscratch/attnvis.py
 ```
+or import `modelsfromscratch.attnvis` into a `ipytnon` or `jupyter notebook` session and run interactively.
 
-From this branch
+* **fix_rope** - this reruns `pipeline.py` with a fixed version of RoPE
+
+* **attn_vis_fix_rope** - this reruns attnvis plots on the fixed rope
